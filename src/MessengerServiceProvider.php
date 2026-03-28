@@ -2,9 +2,9 @@
 
 namespace NettSite\Messenger;
 
+use NettSite\Messenger\Commands\MessengerCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use NettSite\Messenger\Commands\MessengerCommand;
 
 class MessengerServiceProvider extends PackageServiceProvider
 {
