@@ -1,49 +1,53 @@
 {
-    "name": ":vendor_slug/:package_slug",
-    "description": ":package_description",
+    "name": "nettsite/messenger",
+    "version": "1.0.0",
+    "description": "This is my package messenger",
     "keywords": [
-        ":vendor_name",
+        "nettsite",
         "laravel",
-        ":package_slug"
+        "messenger"
     ],
-    "homepage": "https://github.com/:vendor_slug/:package_slug",
+    "homepage": "https://github.com/nettsite/messenger",
     "license": "MIT",
     "authors": [
         {
-            "name": ":author_name",
-            "email": "author@domain.com",
+            "name": "NettSite",
+            "email": "william@nettsite.co.za",
             "role": "Developer"
         }
     ],
     "require": {
         "php": "^8.4",
         "spatie/laravel-package-tools": "^1.16",
-        "illuminate/contracts": "^11.0||^12.0"
+        "illuminate/contracts": "^11.0||^12.0||^13.0",
+        "filament/filament": "^5.0",                                
+        "laravel/sanctum": "^4.0"
     },
     "require-dev": {
+        "larastan/larastan": "^3.0",
+        "laravel/boost": "^1.0",
         "laravel/pint": "^1.14",
         "nunomaduro/collision": "^8.8",
-        "larastan/larastan": "^3.0",
-        "orchestra/testbench": "^10.0.0||^9.0.0",
+        "orchestra/testbench": "^11.0.0||^10.0.0||^9.0.0",
         "pestphp/pest": "^4.0",
         "pestphp/pest-plugin-arch": "^4.0",
         "pestphp/pest-plugin-laravel": "^4.0",
         "phpstan/extension-installer": "^1.4",
         "phpstan/phpstan-deprecation-rules": "^2.0",
         "phpstan/phpstan-phpunit": "^2.0",
-        "spatie/laravel-ray": "^1.35"
+        "spatie/boost-spatie-guidelines": "^1.1"
     },
     "autoload": {
         "psr-4": {
-            "VendorName\\Skeleton\\": "src/",
-            "VendorName\\Skeleton\\Database\\Factories\\": "database/factories/"
+            "NettSite\\Messenger\\": "src/",
+            "NettSite\\Messenger\\Database\\Factories\\": "database/factories/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "VendorName\\Skeleton\\Tests\\": "tests/",
+            "NettSite\\Messenger\\Tests\\": "tests/",
             "Workbench\\App\\": "workbench/app/"
-        }
+    }
     },
     "scripts": {
         "post-autoload-dump": "@composer run prepare",
@@ -63,10 +67,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "VendorName\\Skeleton\\SkeletonServiceProvider"
+                "NettSite\\Messenger\\MessengerServiceProvider"
             ],
             "aliases": {
-                "Skeleton": "VendorName\\Skeleton\\Facades\\Skeleton"
+                "Messenger": "NettSite\\Messenger\\Facades\\Messenger"
             }
         }
     },
