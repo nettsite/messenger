@@ -2,5 +2,15 @@
 
 // config for NettSite/Messenger
 return [
+    'user_model' => null, // null = MessengerUser; 'App\Models\User' = host model
 
+    'fcm' => [
+        'credentials' => env('MESSENGER_FCM_CREDENTIALS', storage_path('app/firebase-credentials.json')),
+        'project_id' => env('MESSENGER_FCM_PROJECT_ID'),
+    ],
+
+    'panel' => [
+        'id' => 'messenger',
+        'path' => 'messenger',
+    ],
 ];

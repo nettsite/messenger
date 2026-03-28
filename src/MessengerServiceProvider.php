@@ -19,7 +19,16 @@ class MessengerServiceProvider extends PackageServiceProvider
             ->name('messenger')
             ->hasConfigFile()
             ->hasViews()
-            ->hasMigration('create_messenger_table')
+            ->hasMigrations([
+                'create_messenger_users_table',
+                'create_messenger_device_tokens_table',
+                'create_messenger_groups_table',
+                'create_messenger_group_users_table',
+                'create_messenger_messages_table',
+                'create_messenger_message_recipients_table',
+                'create_messenger_message_receipts_table',
+                'create_messenger_replies_table',
+            ])
             ->hasCommand(MessengerCommand::class);
     }
 }

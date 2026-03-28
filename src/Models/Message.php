@@ -1,0 +1,67 @@
+<?php
+
+namespace NettSite\Messenger\Models;
+
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use NettSite\Messenger\Database\Factories\MessageFactory;
+
+class Message extends Model
+{
+    use HasFactory;
+    use HasUuids;
+
+    protected $table = 'messenger_messages';
+
+    protected $fillable = [
+        'body',
+        'url',
+        'sender_type',
+        'sender_id',
+        'scheduled_at',
+        'sent_at',
+    ];
+
+    protected $casts = [
+        'scheduled_at' => 'datetime',
+        'sent_at' => 'datetime',
+    ];
+
+    protected static function newFactory(): MessageFactory
+    {
+        return MessageFactory::new();
+    }
+
+    public function sender(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    public function recipients(): HasMany
+    {
+        return $this->hasMany(MessageRecipient::class);
+    }
+
+    public function receipts(): HasMany
+    {
+        return $this->hasMany(MessageReceipt::class);
+    }
+
+    public function replies(): HasMany
+    {
+        return $this->hasMany(Reply::class);
+    }
+
+    public function readCount(): int
+    {
+        return $this->receipts()->whereNotNull('read_at')->count();
+    }
+
+    public function recipientCount(): int
+    {
+        return $this->receipts()->count();
+    }
+}
