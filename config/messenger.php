@@ -14,4 +14,8 @@ return [
         'path' => 'messenger',
         'guard' => 'web', // set to 'messenger' to use MessengerUser as the panel auth model
     ],
+
+    'registration' => [
+        'mode' => env('MESSENGER_REGISTRATION_MODE', 'open'), // 'open' | 'approval' | 'closed'
+    ],
 ];

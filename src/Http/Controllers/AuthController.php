@@ -5,38 +5,96 @@ namespace NettSite\Messenger\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
+use NettSite\Messenger\Enums\RegistrationMode;
+use NettSite\Messenger\Enums\UserStatus;
+use NettSite\Messenger\Http\Requests\LoginRequest;
 use NettSite\Messenger\Http\Requests\RegisterDeviceRequest;
+use NettSite\Messenger\Http\Requests\RegisterUserRequest;
 use NettSite\Messenger\Models\MessengerUser;
 
 class AuthController extends Controller
 {
-    public function register(RegisterDeviceRequest $request): JsonResponse
+    public function register(RegisterUserRequest $request): JsonResponse
     {
-        /** @var class-string<MessengerUser> $userModel */
-        $userModel = config('messenger.user_model') ?? MessengerUser::class;
+        $mode = RegistrationMode::from(config('messenger.registration.mode', 'open'));
 
-        if ($request->filled('user_id')) {
-            $user = $userModel::findOrFail($request->user_id);
-        } else {
-            $user = MessengerUser::create([
-                'name' => 'User',
-                'email' => (string) Str::uuid().'@messenger.invalid',
-                'password' => Hash::make(Str::random(32)),
-            ]);
+        if ($mode === RegistrationMode::Closed) {
+            return response()->json(['message' => 'Registration is closed.'], 403);
         }
 
-        $user->registerDeviceToken($request->token, $request->platform);
+        $status = $mode === RegistrationMode::Approval
+            ? UserStatus::Pending
+            : UserStatus::Active;
 
-        $user->tokens()->where('name', $request->token)->delete();
-        $sanctumToken = $user->createToken($request->token)->plainTextToken;
+        $user = MessengerUser::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'status' => $status,
+        ]);
+
+        if ($status === UserStatus::Pending) {
+            return response()->json(['status' => 'pending'], 202);
+        }
+
+        $user->registerDeviceToken($request->fcm_token, $request->platform);
+        $user->tokens()->where('name', $request->fcm_token)->delete();
+        $sanctumToken = $user->createToken($request->fcm_token)->plainTextToken;
 
         return response()->json([
             'user_id' => $user->getKey(),
             'token' => $sanctumToken,
         ]);
+    }
+
+    public function login(LoginRequest $request): JsonResponse
+    {
+        /** @var class-string<MessengerUser> $userModel */
+        $userModel = config('messenger.user_model') ?? MessengerUser::class;
+
+        $user = $userModel::where('email', $request->email)->first();
+
+        if (! $user || ! Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Invalid credentials.'], 401);
+        }
+
+        if ($user->isPending()) {
+            return response()->json([
+                'message' => 'Your account is pending admin approval.',
+                'status' => 'pending',
+            ], 403);
+        }
+
+        if ($user->isSuspended()) {
+            return response()->json([
+                'message' => 'Your account has been suspended.',
+                'status' => 'suspended',
+            ], 403);
+        }
+
+        $user->registerDeviceToken($request->fcm_token, $request->platform);
+        $user->tokens()->where('name', $request->fcm_token)->delete();
+        $sanctumToken = $user->createToken($request->fcm_token)->plainTextToken;
+
+        return response()->json([
+            'user_id' => $user->getKey(),
+            'token' => $sanctumToken,
+        ]);
+    }
+
+    public function refreshDevice(RegisterDeviceRequest $request): JsonResponse
+    {
+        /** @var MessengerUser $user */
+        $user = Auth::user();
+
+        $user->registerDeviceToken($request->token, $request->platform);
+        $user->tokens()->where('name', $request->token)->delete();
+        $sanctumToken = $user->createToken($request->token)->plainTextToken;
+
+        return response()->json(['token' => $sanctumToken]);
     }
 
     public function logout(Request $request): JsonResponse
