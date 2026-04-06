@@ -52,6 +52,40 @@ it('returns 422 when email is already taken', function () {
     ])->assertUnprocessable()->assertJsonValidationErrors(['email']);
 });
 
+it('creates an active enrollment and returns a token when registering in open mode', function () {
+    config()->set('messenger.registration.mode', 'open');
+
+    $response = $this->postJson('/api/messenger/auth/register', [
+        'name' => 'New User',
+        'email' => 'newuser@example.com',
+        'password' => 'secret1234',
+        'password_confirmation' => 'secret1234',
+        'platform' => 'web',
+    ]);
+
+    $response->assertOk()->assertJsonStructure(['user_id', 'token']);
+
+    $user = User::where('email', 'newuser@example.com')->first();
+    expect($user->messengerEnrollment->status->value)->toBe('active');
+});
+
+it('creates a pending enrollment and returns 202 when registering in approval mode', function () {
+    config()->set('messenger.registration.mode', 'approval');
+
+    $response = $this->postJson('/api/messenger/auth/register', [
+        'name' => 'Pending User',
+        'email' => 'pending@example.com',
+        'password' => 'secret1234',
+        'password_confirmation' => 'secret1234',
+        'platform' => 'web',
+    ]);
+
+    $response->assertStatus(202)->assertJson(['status' => 'pending']);
+
+    $user = User::where('email', 'pending@example.com')->first();
+    expect($user->messengerEnrollment->status->value)->toBe('pending');
+});
+
 it('returns 422 when password confirmation does not match', function () {
     config()->set('messenger.registration.mode', 'open');
 
@@ -119,6 +153,70 @@ it('logs in a user and returns a sanctum token and device token', function () {
     $response->assertOk()->assertJsonStructure(['user_id', 'token']);
     expect($response->json('user_id'))->toBe($user->getKey());
     expect(DeviceToken::where('token', 'fcm-login-token')->exists())->toBeTrue();
+});
+
+it('creates an active enrollment on first login in open mode for a host-app user', function () {
+    config()->set('messenger.registration.mode', 'open');
+    $user = User::factory()->create(['password' => bcrypt('secret1234')]);
+
+    $response = $this->postJson('/api/messenger/auth/login', [
+        'email' => $user->email,
+        'password' => 'secret1234',
+        'platform' => 'web',
+    ]);
+
+    $response->assertOk()->assertJsonStructure(['user_id', 'token']);
+    expect($user->fresh()->messengerEnrollment->status->value)->toBe('active');
+});
+
+it('creates a pending enrollment on first login in approval mode for a host-app user', function () {
+    config()->set('messenger.registration.mode', 'approval');
+    $user = User::factory()->create(['password' => bcrypt('secret1234')]);
+
+    $this->postJson('/api/messenger/auth/login', [
+        'email' => $user->email,
+        'password' => 'secret1234',
+        'platform' => 'web',
+    ])->assertForbidden()->assertJson(['status' => 'pending']);
+
+    expect($user->fresh()->messengerEnrollment->status->value)->toBe('pending');
+});
+
+it('returns 403 on first login when registration is closed', function () {
+    config()->set('messenger.registration.mode', 'closed');
+    $user = User::factory()->create(['password' => bcrypt('secret1234')]);
+
+    $this->postJson('/api/messenger/auth/login', [
+        'email' => $user->email,
+        'password' => 'secret1234',
+        'platform' => 'web',
+    ])->assertForbidden();
+
+    expect($user->fresh()->messengerEnrollment)->toBeNull();
+});
+
+it('returns 403 with pending status for a user awaiting approval', function () {
+    config()->set('messenger.registration.mode', 'open');
+    $user = User::factory()->create(['password' => bcrypt('secret1234')]);
+    $user->messengerEnrollment()->create(['status' => 'pending', 'enrolled_at' => now()]);
+
+    $this->postJson('/api/messenger/auth/login', [
+        'email' => $user->email,
+        'password' => 'secret1234',
+        'platform' => 'web',
+    ])->assertForbidden()->assertJson(['status' => 'pending']);
+});
+
+it('returns 403 for a suspended user', function () {
+    config()->set('messenger.registration.mode', 'open');
+    $user = User::factory()->create(['password' => bcrypt('secret1234')]);
+    $user->messengerEnrollment()->create(['status' => 'suspended', 'enrolled_at' => now()]);
+
+    $this->postJson('/api/messenger/auth/login', [
+        'email' => $user->email,
+        'password' => 'secret1234',
+        'platform' => 'web',
+    ])->assertForbidden()->assertJsonMissing(['status' => 'pending']);
 });
 
 it('returns 401 for invalid credentials', function () {

@@ -27,7 +27,7 @@ Run the installer:
 php artisan messenger:install
 ```
 
-This publishes the config file, publishes and runs the migrations, and prints the next steps.
+This publishes the config file, publishes and runs the migrations, and prints the next steps. If `routes/api.php` does not exist, it also runs `php artisan install:api` to set up Sanctum and the `personal_access_tokens` table.
 
 ### Prepare your User model
 
@@ -76,8 +76,9 @@ return [
         'project_id'  => env('MESSENGER_FCM_PROJECT_ID'),
     ],
 
-    // 'open'   — API register endpoint creates users
-    // 'closed' — registration via API is disabled (403)
+    // 'open'     — API register endpoint creates users immediately
+    // 'approval' — users register but need admin approval before they can log in
+    // 'closed'   — registration via API is disabled (403)
     'registration' => [
         'mode' => env('MESSENGER_REGISTRATION_MODE', 'open'),
     ],

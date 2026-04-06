@@ -31,13 +31,13 @@ This is a **Laravel package** built on [spatie/laravel-package-tools](https://gi
 - No WebSockets/Reverb required
 
 ### User Model
-- Ships its own `MessengerUser` model + migrations by default
-- Config key `messenger.user_model` — set to e.g. `App\Models\User` to use the host app's user model instead
-- `HasMessenger` trait for host app User models (adds `messages()`, `groups()`, device token methods)
+- Uses the host app's User model exclusively — set via `messenger.user_model` config (defaults to `App\Models\User`)
+- `HasMessenger` trait adds `messengerEnrollment()`, `deviceTokens()`, `groups()`, `messageReceipts()`, and `markMessageRead()` to the host User model
+- `MessengerAuthenticatable` contract must be implemented by the host User model
 
 ### Database Tables
-- `messenger_users` — standalone users (skipped if `messenger.user_model` is set)
-- `messenger_device_tokens` — auth/polling session management (Sanctum)
+- `messenger_enrollments` — morph table tracking each user's messenger status (`active`, `pending`, `suspended`); created on first login or registration
+- `messenger_device_tokens` — FCM tokens per user/device; used for push delivery
 - `messenger_messages` — `body`, `url` (nullable), `sender_type`, `sender_id`, `scheduled_at`, `sent_at`
 - `messenger_message_recipients` — `message_id`, `recipient_type` (user/group/all), `recipient_id` (nullable)
 - `messenger_message_receipts` — `message_id`, `user_id`, `delivered_at`, `read_at`
@@ -59,10 +59,7 @@ Registration is controlled by `messenger.registration.mode` config (`MESSENGER_R
 - `closed` — no self-registration; admin creates users in the Filament panel
 
 ### Filament Panel
-Admin UI for user management, group management, message composition (via `MessengerService`), and message history with aggregate read stats (e.g. "47/120 read").
-
-### Filament Panel
-Admin UI runs at `/messenger` (configurable). Uses **Filament 5.4.x** — action classes live under `Filament\Actions\*`, not `Filament\Tables\Actions\*`. Always use `search-docs` or Context7 before writing Filament code.
+Admin UI for group management, message composition (via `MessengerService`), and message history with aggregate read stats (e.g. "47/120 read"). Integrated into the host app's panel via `MessengerPlugin`. Uses **Filament 5.4.x** — action classes live under `Filament\Actions\*`, not `Filament\Tables\Actions\*`. Always use `search-docs` or Context7 before writing Filament code.
 
 ### Testing
 - Pest 4 with Orchestra Testbench — no running Laravel app needed

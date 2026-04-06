@@ -17,6 +17,7 @@ class InstallCommand extends Command
         $this->info('Installing Messenger...');
         $this->newLine();
 
+        $this->ensureApiInstalled();
         $this->publishConfig();
         $this->publishMigrations();
         $this->offerToMigrate();
@@ -27,6 +28,18 @@ class InstallCommand extends Command
         $this->info('Messenger installed successfully.');
 
         return self::SUCCESS;
+    }
+
+    private function ensureApiInstalled(): void
+    {
+        if (file_exists(base_path('routes/api.php'))) {
+            $this->line('  <info>Sanctum API routes already present.</info>');
+
+            return;
+        }
+
+        $this->line('  Running <comment>php artisan install:api</comment> to set up Sanctum...');
+        $this->call('install:api', ['--no-interaction' => true]);
     }
 
     private function publishConfig(): void

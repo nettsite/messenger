@@ -11,9 +11,11 @@ use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\PersonalAccessToken;
 use NettSite\Messenger\Contracts\MessengerAuthenticatable;
 use NettSite\Messenger\Enums\RegistrationMode;
+use NettSite\Messenger\Enums\UserStatus;
 use NettSite\Messenger\Http\Requests\LoginRequest;
 use NettSite\Messenger\Http\Requests\RegisterDeviceRequest;
 use NettSite\Messenger\Http\Requests\RegisterUserRequest;
+use NettSite\Messenger\Models\MessengerEnrollment;
 
 class AuthController extends Controller
 {
@@ -28,22 +30,27 @@ class AuthController extends Controller
         /** @var class-string<Authenticatable> $userModel */
         $userModel = config('messenger.user_model');
 
-        /** @var Authenticatable $user */
+        if ($userModel::where('email', $request->email)->exists()) {
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => ['email' => ['The email has already been taken.']],
+            ], 422);
+        }
+
+        /** @var Authenticatable&MessengerAuthenticatable $user */
         $user = $userModel::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
 
-        $this->registerDevice($user, $request->fcm_token, $request->platform);
-        $tokenName = $request->fcm_token ?? $request->platform;
-        $user->tokens()->where('name', $tokenName)->delete();
-        $sanctumToken = $user->createToken($tokenName)->plainTextToken;
+        $enrollment = $this->enroll($user, $mode);
 
-        return response()->json([
-            'user_id' => $user->getKey(),
-            'token' => $sanctumToken,
-        ]);
+        if ($enrollment->status === UserStatus::Pending) {
+            return response()->json(['status' => 'pending'], 202);
+        }
+
+        return $this->issueToken($user, $request->fcm_token, $request->platform);
     }
 
     public function login(LoginRequest $request): JsonResponse
@@ -51,21 +58,35 @@ class AuthController extends Controller
         /** @var class-string<Authenticatable> $userModel */
         $userModel = config('messenger.user_model');
 
+        /** @var (Authenticatable&MessengerAuthenticatable)|null $user */
         $user = $userModel::where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
-        $this->registerDevice($user, $request->fcm_token, $request->platform);
-        $tokenName = $request->fcm_token ?? $request->platform;
-        $user->tokens()->where('name', $tokenName)->delete();
-        $sanctumToken = $user->createToken($tokenName)->plainTextToken;
+        $enrollment = $user->messengerEnrollment;
 
-        return response()->json([
-            'user_id' => $user->getKey(),
-            'token' => $sanctumToken,
-        ]);
+        if (! $enrollment) {
+            // First time this host-app user has accessed messenger — apply the current rules.
+            $mode = RegistrationMode::from(config('messenger.registration.mode', 'open'));
+
+            if ($mode === RegistrationMode::Closed) {
+                return response()->json(['message' => 'Registration is closed.'], 403);
+            }
+
+            $enrollment = $this->enroll($user, $mode);
+        }
+
+        if ($enrollment->status === UserStatus::Pending) {
+            return response()->json(['message' => 'Your account is pending approval.', 'status' => 'pending'], 403);
+        }
+
+        if ($enrollment->status === UserStatus::Suspended) {
+            return response()->json(['message' => 'Your account has been suspended.', 'status' => 'suspended'], 403);
+        }
+
+        return $this->issueToken($user, $request->fcm_token, $request->platform);
     }
 
     public function refreshDevice(RegisterDeviceRequest $request): JsonResponse
@@ -80,14 +101,6 @@ class AuthController extends Controller
         return response()->json(['token' => $sanctumToken]);
     }
 
-    /** Register the FCM token if provided; no-op for web users with no token. */
-    private function registerDevice(MessengerAuthenticatable $user, ?string $fcmToken, string $platform): void
-    {
-        if ($fcmToken) {
-            $user->registerDeviceToken($fcmToken, $platform);
-        }
-    }
-
     public function logout(Request $request): JsonResponse
     {
         $token = $request->bearerToken();
@@ -97,5 +110,34 @@ class AuthController extends Controller
         }
 
         return response()->json(['message' => 'Logged out.']);
+    }
+
+    private function enroll(MessengerAuthenticatable $user, RegistrationMode $mode): MessengerEnrollment
+    {
+        $status = $mode === RegistrationMode::Approval ? UserStatus::Pending : UserStatus::Active;
+
+        /** @var MessengerEnrollment $enrollment */
+        $enrollment = $user->messengerEnrollment()->create([
+            'status' => $status,
+            'enrolled_at' => now(),
+        ]);
+
+        return $enrollment;
+    }
+
+    private function issueToken(MessengerAuthenticatable $user, ?string $fcmToken, string $platform): JsonResponse
+    {
+        if ($fcmToken) {
+            $user->registerDeviceToken($fcmToken, $platform);
+        }
+
+        $tokenName = $fcmToken ?? $platform;
+        $user->tokens()->where('name', $tokenName)->delete();
+        $sanctumToken = $user->createToken($tokenName)->plainTextToken;
+
+        return response()->json([
+            'user_id' => $user->getKey(),
+            'token' => $sanctumToken,
+        ]);
     }
 }

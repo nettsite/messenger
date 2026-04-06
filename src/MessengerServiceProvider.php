@@ -17,6 +17,7 @@ class MessengerServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasViews()
             ->hasMigrations([
+                'create_messenger_enrollments_table',
                 'create_messenger_device_tokens_table',
                 'create_messenger_groups_table',
                 'create_messenger_group_users_table',

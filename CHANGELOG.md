@@ -2,6 +2,22 @@
 
 All notable changes to `nettsite/messenger` will be documented in this file.
 
+## [1.1.1] - 2026-04-06
+
+### Added
+
+- **Approval mode is back** — `MESSENGER_REGISTRATION_MODE=approval` works again. Registering returns HTTP 202 and the user waits for admin approval before they can log in.
+- **`messenger_enrollments` table** — a morph table that tracks each user's messenger status (`active`, `pending`, `suspended`) separately from the host app's User model. The package never touches your `users` table to record status.
+- **`UserStatus` enum** — `Active`, `Pending`, `Suspended`.
+- **First-login detection** — when a host-app user (created outside the messenger registration flow) logs in for the first time, the `login` endpoint now applies the current registration mode rules and creates an enrollment record automatically. Previously these users were silently allowed in regardless of mode.
+- **`messenger:install` now runs `install:api`** — if `routes/api.php` is absent, the installer calls `php artisan install:api` on your behalf, which sets up Sanctum and the `personal_access_tokens` table.
+
+### Fixed
+
+- `RegisterUserRequest` had a hardcoded `unique:users,email` rule that ignored the configured `messenger.user_model` table. The uniqueness check is now handled in the controller using the correct model.
+
+---
+
 ## [1.1.0] - 2026-04-05
 
 ### Breaking changes
