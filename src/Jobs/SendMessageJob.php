@@ -20,11 +20,19 @@ class SendMessageJob implements ShouldQueue
     {
         $tokens = $this->resolveDeviceTokens();
 
+        $succeeded = 0;
+
         foreach ($tokens as $token) {
-            $fcm->send($token->token, 'New message', $this->message->body, $this->message->url);
+            if ($fcm->send($token->token, 'New message', $this->message->body, $this->message->url)) {
+                $succeeded++;
+            }
         }
 
-        $this->message->update(['sent_at' => now()]);
+        if ($tokens->isEmpty() || $succeeded > 0) {
+            $this->message->update(['sent_at' => now(), 'failed_at' => null]);
+        } else {
+            $this->message->update(['failed_at' => now(), 'sent_at' => null]);
+        }
     }
 
     /** @return Collection<int, DeviceToken> */

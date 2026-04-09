@@ -10,7 +10,7 @@ class FCMService
 {
     private const SCOPE = 'https://www.googleapis.com/auth/firebase.messaging';
 
-    public function send(string $deviceToken, string $title, string $body, ?string $url = null): void
+    public function send(string $deviceToken, string $title, string $body, ?string $url = null): bool
     {
         $projectId = config('messenger.fcm.project_id');
         $credentialsPath = config('messenger.fcm.credentials');
@@ -18,13 +18,13 @@ class FCMService
         if (! $projectId || ! file_exists($credentialsPath)) {
             Log::debug('FCMService: missing project_id or credentials file, skipping send.');
 
-            return;
+            return false;
         }
 
         $accessToken = $this->fetchAccessToken($credentialsPath);
 
         if (! $accessToken) {
-            return;
+            return false;
         }
 
         $payload = [
@@ -56,7 +56,11 @@ class FCMService
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
+
+            return false;
         }
+
+        return true;
     }
 
     private function fetchAccessToken(string $credentialsPath): ?string

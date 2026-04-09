@@ -19,6 +19,7 @@ use NettSite\Messenger\Database\Factories\MessageFactory;
  * @property string|null $sender_id
  * @property Carbon|null $scheduled_at
  * @property Carbon|null $sent_at
+ * @property Carbon|null $failed_at
  */
 class Message extends Model
 {
@@ -34,11 +35,13 @@ class Message extends Model
         'sender_id',
         'scheduled_at',
         'sent_at',
+        'failed_at',
     ];
 
     protected $casts = [
         'scheduled_at' => 'datetime',
         'sent_at' => 'datetime',
+        'failed_at' => 'datetime',
     ];
 
     protected static function newFactory(): MessageFactory

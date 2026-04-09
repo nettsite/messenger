@@ -92,14 +92,22 @@ class MessageResource extends Resource
                 TextColumn::make('recipients.recipient_type')
                     ->label('To')
                     ->badge(),
-                TextColumn::make('scheduled_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->placeholder('—'),
+                TextColumn::make('status')
+                    ->badge()
+                    ->state(fn (Message $record): string => match (true) {
+                        $record->failed_at !== null => 'Failed',
+                        $record->sent_at !== null => 'Sent',
+                        default => 'Pending',
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'Sent' => 'success',
+                        'Failed' => 'danger',
+                        default => 'warning',
+                    }),
                 TextColumn::make('sent_at')
                     ->dateTime()
                     ->sortable()
-                    ->placeholder('Pending'),
+                    ->placeholder('—'),
                 TextColumn::make('read_stats')
                     ->label('Read')
                     ->state(fn (Message $record) => $record->readCount().'/'.$record->recipientCount()),
