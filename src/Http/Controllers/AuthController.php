@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\PersonalAccessToken;
 use NettSite\Messenger\Contracts\MessengerAuthenticatable;
 use NettSite\Messenger\Enums\RegistrationMode;
@@ -55,6 +56,8 @@ class AuthController extends Controller
 
     public function login(LoginRequest $request): JsonResponse
     {
+        Log::debug('Messenger login attempt', ['email' => $request->email, 'platform' => $request->platform]);
+
         /** @var class-string<Authenticatable> $userModel */
         $userModel = config('messenger.user_model');
 
