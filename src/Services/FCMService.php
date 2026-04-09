@@ -39,7 +39,6 @@ class FCMService
                     'notification' => [
                         'channel_id' => 'messenger_messages',
                         'sound' => 'default',
-                        'priority' => 'HIGH',
                     ],
                 ],
             ],
