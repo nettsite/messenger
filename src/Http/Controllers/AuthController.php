@@ -66,6 +66,18 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
+        if (! $user instanceof MessengerAuthenticatable) {
+            throw new \RuntimeException(
+                'User model ['.get_class($user).'] must implement MessengerAuthenticatable. Add the HasMessenger trait and implement the contract.'
+            );
+        }
+
+        if (! method_exists($user, 'createToken')) {
+            throw new \RuntimeException(
+                'User model ['.get_class($user).'] must use the HasApiTokens trait from Laravel Sanctum.'
+            );
+        }
+
         $enrollment = $user->messengerEnrollment;
 
         if (! $enrollment) {
@@ -142,7 +154,7 @@ class AuthController extends Controller
         $sanctumToken = $user->createToken($tokenName)->plainTextToken;
 
         return response()->json([
-            'user_id' => $user->getKey(),
+            'user_id' => (string) $user->getKey(),
             'token' => $sanctumToken,
         ]);
     }
