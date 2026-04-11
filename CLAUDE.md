@@ -62,6 +62,20 @@ Registration is controlled by `messenger.registration.mode` config (`MESSENGER_R
 ### Filament Panel
 Admin UI for group management, message composition (via `MessengerService`), and message history with aggregate read stats (e.g. "47/120 read"). Integrated into the host app's panel via `MessengerPlugin`. Uses **Filament 5.4.x** — action classes live under `Filament\Actions\*`, not `Filament\Tables\Actions\*`. Always use `search-docs` or Context7 before writing Filament code.
 
+### MariaDB UUID Foreign Keys
+MariaDB 10.7+ treats `uuid` as a native binary type distinct from `char(36)`. Foreign key constraints require an exact type match — a `char(36)` column **cannot** reference a `uuid` primary key; MariaDB throws `errno: 150 "Foreign key constraint is incorrectly formed"`.
+
+**Rule:** any column that has a `->foreign()` constraint pointing to a messenger table's `id` (which is always `uuid`) must itself be declared with `$table->uuid(...)`, not `$table->char(..., 36)`.
+
+Morph columns (`user_id`, `sender_id`, `author_id`, `recipient_id`) have **no FK constraint** and may stay as `char(36)` — they reference the host app's User model, which may use integer or UUID PKs.
+
+Affected stubs (already fixed):
+- `create_messenger_message_recipients` — `message_id`
+- `create_messenger_message_receipts` — `message_id`
+- `create_messenger_conversations` — `message_id`
+- `update_messenger_conversation_messages` — `conversation_id`
+- `create_messenger_group_users` — `group_id`
+
 ### Testing
 - Pest 4 with Orchestra Testbench — no running Laravel app needed
 - `tests/TestCase.php` registers the service provider and configures the `testing` database
